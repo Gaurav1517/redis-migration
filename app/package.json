@@ -1,0 +1,14 @@
+{
+  "name": "redis-migration-demo-app",
+  "version": "1.0.0",
+  "description": "Small Node.js + Redis app to practice Redis VM migration (GCP / Docker).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "body-parser": "^1.20.2",
+    "redis": "^4.6.13"
+  }
+}
