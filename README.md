@@ -160,9 +160,12 @@ docker build -t redis-migration-demo-app:v1 .
 ### 5.3. Set env pointing to Redis (VM2 internal IP)
 
 ```bash
-export REDIS_HOST="<VM2_INTERNAL_IP>"     # e.g. 10.128.0.5
-export REDIS_PORT="6379"
-export REDIS_PASSWORD="mypassword123"
+echo 'export REDIS_HOST="10.128.0.6"' >> ~/.bashrc
+echo 'export REDIS_PORT="6379"' >> ~/.bashrc
+echo 'export REDIS_PASSWORD="redis"' >> ~/.bashrc
+```
+```bash
+source ~/.bashrc
 ```
 
 ### 5.4. Run the app container
@@ -215,11 +218,51 @@ docker cp redis-primary:/data/dump.rdb ~/redis-backups/dump-$(date +%F-%H%M).rdb
 
 ### 6.2. On VM3: Prepare volume and container
 
-Upload the backup to VM3:
+To copy backup to migrate-vm
+
+Create ssh key on new migration-redis server
 
 ```bash
-gcloud compute scp redis-vm:~/redis-backups/dump-*.rdb redis-migration-vm:~/
+ssh-keygen
 ```
+
+copy 
+```bash
+cat ~/.ssh/id_ed25519
+```
+
+Paste to old redis-server
+```bash
+vim ~/.ssh/id_ed25519
+Change permission to redis-server
+chmod 600 ~/id_ed25519
+chmod 700 ~/.ssh
+```
+
+Change permission to new migration-redis
+```bash
+cat id_ed25519.pub >> /root/.ssh/authorized_keys
+chmod 600 /root/.ssh/authorized_keys
+chmod 700 /root/.ssh
+```
+
+Copy dump.rdb file
+```bash
+scp -i ~/id_ed25519 ~/redis-backups/dump.rdb root@<redis-migration-vm>:/tmp
+```
+Freez image(so redis:latest does not change)
+```bash
+docker commit redis-securer redis-prod-backup:v1
+docker save -o /root/redis-backups/redis-prod-backup-v1.tar redis-prod-backup:v1
+
+scp -i ~/.ssh/id_ed25519 redis-backups/redis-prod-backup-v1.tar  root@104.197.12.174:/tmp/
+```
+
+Load image on new vm
+```bash
+docker  load -i /tmp/redis-prod-backup-v1.tar
+```
+
 
 On **VM3 (redis-migration-vm)**:
 
@@ -278,9 +321,11 @@ For practice, you can:
 2. Point env vars to **VM3 internal IP**:
 
     ```bash
-    export REDIS_HOST="<VM3_INTERNAL_IP>"  # e.g. 10.128.0.7
-    export REDIS_PORT="6379"
-    export REDIS_PASSWORD="mypassword123"
+    echo 'export REDIS_HOST="<REDIS_PUBLIC-IP>"' >> ~/.bashrc
+    echo 'export REDIS_PORT="6379"' >> ~/.bashrc
+    echo 'export REDIS_PASSWORD="<redis-pass>"' >> ~/.bashrc
+
+    source ~/.bashrc
     ```
 
 3. Start app container again:
